@@ -19,7 +19,9 @@ SHELL ["/bin/bash", "-c"]
 RUN apt-get update && \
     apt-get upgrade --yes && \
     apt-get install --yes --no-install-recommends \
+    ack \
     fonts-liberation \
+    graphviz \
     less \
     locales \
     pandoc \
@@ -27,6 +29,7 @@ RUN apt-get update && \
     texlive-xetex \
     texlive-fonts-recommended \
     texlive-plain-generic \
+    tree \
     tzdata \
     vim && \
     echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && \
@@ -99,8 +102,10 @@ RUN jupyter-lab --generate-config && \
 # install additional python packages
 #
 RUN python3 -m pip install --no-cache-dir \
+    jupyterlab-drawio \
     matplotlib \
     pandas \
+    pydot \
     scikit-learn \
     seaborn
 

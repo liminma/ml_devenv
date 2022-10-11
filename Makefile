@@ -7,6 +7,7 @@ gname = devuser
 
 container_name = devenv
 disable_jupyter_auth = yes
+notebook_folder = workspace/notebooks
 
 build:
 	docker build \
@@ -24,7 +25,7 @@ debug:
 start:
 	docker run -d --init \
 	-p 8888:8888 \
-	--env NOTEBOOK_FOLDER=workspace/notebooks \
+	--env NOTEBOOK_FOLDER=$(notebook_folder) \
 	--user $(uname):$(gname) \
 	--gpus all \
 	--name devenv \
@@ -37,6 +38,9 @@ stop:
 
 remove:
 	docker rm $(container_name)
+
+force-remove:
+	docker rm -f $(container_name)
 
 restart: stop remove start
 
