@@ -1,12 +1,7 @@
 ARG CUDA=11.7
-FROM nvidia/cuda:${CUDA}.1-cudnn8-runtime-ubuntu20.04
-
-# FROM directive resets ARGs, so need to specify CUDA arg again
-ARG CUDA
+FROM nvidia/cuda:${CUDA}.1-cudnn8-runtime-ubuntu20.04 AS base
 
 ARG PYTHON_VERSION=3.8
-ARG TF_PACKAGE=tensorflow-gpu
-ARG TF_VERSION=2.7
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG C.UTF-8
@@ -72,36 +67,11 @@ WORKDIR /home/${USER_NAME}
 ENV PATH=/home/${USER_NAME}/.local/bin:${PATH}
 
 #
-# install TensorFlow & Jupyter notebook
+# install Jupyter notebook and other python packages
 #
 RUN python3 -m pip install --no-cache-dir \
-    protobuf==3.19.4 \
-    ${TF_PACKAGE}${TF_VERSION:+==${TF_VERSION}} \
     jupyter \
-    jupyterlab
-
-# override jupyter lab default theme
-COPY overrides.json .local/share/jupyter/lab/settings/
-
-EXPOSE 8888
-
-#
-# configure jupyter notebook
-#
-ARG DISABLE_JUPYTER_AUTH=no
-
-RUN jupyter-lab --generate-config && \
-    # configure notebook terminal to use bash instead of sh
-    echo "c.ServerApp.terminado_settings = {'shell_command': ['/bin/bash']}" >> .jupyter/jupyter_lab_config.py && \
-    # disable jupyter auth if required, which is convenient for local development
-    if [[ ${DISABLE_JUPYTER_AUTH} = "yes" ]]; \
-    then echo "c.ServerApp.token = ''" >> .jupyter/jupyter_lab_config.py; \
-    fi
-
-#
-# install additional python packages
-#
-RUN python3 -m pip install --no-cache-dir \
+    jupyterlab \
     jupyterlab-drawio \
     matplotlib \
     pandas \
@@ -110,6 +80,50 @@ RUN python3 -m pip install --no-cache-dir \
     seaborn
 
 #
-# start jupyter lab
+# configure jupyter lab
 #
+ARG DISABLE_JUPYTER_AUTH=no
+
+# override jupyter lab default theme
+COPY overrides.json .local/share/jupyter/lab/settings/
+
+RUN jupyter-lab --generate-config && \
+# configure notebook terminal to use bash instead of sh
+echo "c.ServerApp.terminado_settings = {'shell_command': ['/bin/bash']}" >> .jupyter/jupyter_lab_config.py && \
+# disable jupyter auth if required, which is convenient for local development
+if [[ ${DISABLE_JUPYTER_AUTH} = "yes" ]]; \
+then echo "c.ServerApp.token = ''" >> .jupyter/jupyter_lab_config.py; \
+fi
+
+EXPOSE 8888
+
+#
+# dev env for TensorFlow 2.7
+#
+FROM base AS devenv_tf
+
+ARG TF_PACKAGE=tensorflow-gpu
+ARG TF_VERSION=2.7
+
+# install TensorFlow
+RUN python3 -m pip install --no-cache-dir \
+    protobuf==3.19.4 \
+    ${TF_PACKAGE}${TF_VERSION:+==${TF_VERSION}}
+
+# start jupyter lab
+CMD ["bash", "-c", "jupyter-lab --ip 0.0.0.0 --no-browser --notebook-dir ${NOTEBOOK_FOLDER}"]
+
+#
+# dev env for PyTorch 2.0
+#
+FROM base AS devenv_torch
+
+# install PyTorch 2.0
+RUN python3 -m pip install --no-cache-dir \
+    torch \
+    torchaudio \
+    torchtext \
+    torchvision
+
+# start jupyter lab
 CMD ["bash", "-c", "jupyter-lab --ip 0.0.0.0 --no-browser --notebook-dir ${NOTEBOOK_FOLDER}"]
